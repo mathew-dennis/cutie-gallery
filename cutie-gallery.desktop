@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Gallery
+Comment=Browse pictures
+Exec=cutie-gallery
+Icon=image-x-generic
+Categories=Graphics;Photography;
+Terminal=false
