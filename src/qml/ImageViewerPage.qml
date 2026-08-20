@@ -124,6 +124,6 @@ CutiePage {
             color: "#66000000"
         }
 
-        onClicked:imageView.backRequested()
+        onClicked: imageView.StackView.view.pop()
     }
 }
