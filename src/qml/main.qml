@@ -86,7 +86,7 @@ CutieWindow {
 					height: photoGrid.cellHeight
 
 					Image {
-						anchors.fill: cardBg
+						anchors.fill: parent
 						anchors.margins: 2
 						asynchronous: true
 						fillMode: Image.PreserveAspectCrop
