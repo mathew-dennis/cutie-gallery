@@ -22,11 +22,11 @@ CutieWindow {
 		width: mainWindow.width
 		height: mainWindow.height
 
-		readonly property int smallColumns: 5
+		readonly property int smallColumns: 6
 		readonly property int largeColumns: 3
 		property bool zoomedIn: false
 		readonly property int columns: galleryPage.zoomedIn ? galleryPage.largeColumns : galleryPage.smallColumns
-		readonly property real cellSize: photoGrid.width / galleryPage.columns
+		readonly property real cellSize: sectionListView.width / galleryPage.columns
 
 		CutiePageHeader {
 			id: header
@@ -49,8 +49,7 @@ CutieWindow {
 		}
 
 		// Two-stage pinch zoom: pinch out for fewer, bigger columns, pinch
-		// in for more, smaller ones. Snaps to one of two fixed layouts
-		// rather than resizing continuously.
+		// in for more, smaller ones. Snaps to two fixed column grid layouts.
 		PinchArea {
 			id: pinchArea
 			anchors.top: header.bottom
@@ -65,46 +64,127 @@ CutieWindow {
 					galleryPage.zoomedIn = false;
 			}
 
-			GridView {
-				id: photoGrid
+			ListView {
+				id: sectionListView
 				anchors.fill: parent
-				model: ImageScanner
-				cellWidth: galleryPage.cellSize
-				cellHeight: galleryPage.cellSize
-				cacheBuffer: cellHeight * 4
-
-				Behavior on cellWidth {
-					NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
-				}
-				Behavior on cellHeight {
-					NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
-				}
+				model: ImageScanner.sections
+				spacing: 16
+				clip: true
+				cacheBuffer: 800
 
 				delegate: Item {
-					id: cardRoot
-					width: photoGrid.cellWidth
-					height: photoGrid.cellHeight
+					id: sectionDelegate
+					width: sectionListView.width
+					property bool expanded: false
 
-					Image {
-						anchors.fill: parent
-						anchors.margins: 2
-						asynchronous: true
-						fillMode: Image.PreserveAspectCrop
-						source: "image://cutiegallerythumb/" + encodeURIComponent(model.path)
-						sourceSize.width: width
-						sourceSize.height: height
-						cache: true
+					readonly property var sectionItems: modelData.items || []
+					readonly property int totalItems: sectionItems.length
+					readonly property int defaultMaxCount: galleryPage.columns * 3
+					readonly property int visibleCount: sectionDelegate.expanded ? totalItems : Math.min(totalItems, defaultMaxCount)
+					readonly property int visibleRows: Math.ceil(visibleCount / galleryPage.columns)
+
+					height: sectionHeader.height + (visibleRows * galleryPage.cellSize) + sectionGrid.anchors.topMargin
+
+					Behavior on height {
+						NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
 					}
 
-					TapHandler {
-						onTapped: mainWindow.openImage(index)
+					// Date / Month Section Header Bar (Toggles expanded rows when clicked)
+					Item {
+						id: sectionHeader
+						width: parent.width
+						height: 32
+
+						CutieLabel {
+							anchors.left: parent.left
+							anchors.leftMargin: 8
+							anchors.verticalCenter: parent.verticalCenter
+							text: modelData.title
+							font.pixelSize: 18
+							font.bold: true
+							color: Atmosphere.textColor
+						}
+
+						CutieLabel {
+							anchors.right: parent.right
+							anchors.rightMargin: 8
+							anchors.verticalCenter: parent.verticalCenter
+							text: modelData.countText
+							font.pixelSize: 13
+							color: Atmosphere.textColor
+							opacity: 0.7
+						}
+
+						TapHandler {
+							onTapped: sectionDelegate.expanded = !sectionDelegate.expanded
+						}
+					}
+
+					// Responsive Grid of Photos
+					Grid {
+						id: sectionGrid
+						anchors.top: sectionHeader.bottom
+						anchors.topMargin: 6
+						anchors.left: parent.left
+						anchors.right: parent.right
+						columns: galleryPage.columns
+
+						Repeater {
+							model: sectionDelegate.visibleCount
+
+							delegate: Item {
+								id: cardRoot
+								width: galleryPage.cellSize
+								height: galleryPage.cellSize
+
+								readonly property var itemData: sectionDelegate.sectionItems[index]
+
+								Image {
+									anchors.fill: parent
+									anchors.margins: 1.5
+									asynchronous: true
+									fillMode: Image.PreserveAspectCrop
+									source: "image://cutiegallerythumb/" + encodeURIComponent(cardRoot.itemData.path)
+									sourceSize.width: width
+									sourceSize.height: height
+									cache: true
+								}
+
+								// Heart overlay
+								CutieLabel {
+									anchors.top: parent.top
+									anchors.right: parent.right
+									anchors.margins: 6
+									text: "♥"
+									font.pixelSize: 12
+									color: "#CCFFFFFF"
+								}
+
+								// Video overlay indicator badge
+								Item {
+									anchors.bottom: parent.bottom
+									anchors.right: parent.right
+									anchors.margins: 4
+									visible: cardRoot.itemData.fileName.endsWith(".mp4") || cardRoot.itemData.fileName.endsWith(".mkv")
+
+									CutieLabel {
+										text: "▶ 0:00"
+										font.pixelSize: 10
+										color: "#FFFFFF"
+									}
+								}
+
+								TapHandler {
+									onTapped: mainWindow.openImage(cardRoot.itemData.globalIndex)
+								}
+							}
+						}
 					}
 				}
 			}
 		}
 
-		// Re-scan ~/Pictures, ~/DCIM, ~/DCIM/Camera. Same visual language
-		// as cutie-notes' new-note FAB: transparent fill, thin ring border.
+		// Re-scan FAB button
 		Rectangle {
 			width: 56
 			height: 56
