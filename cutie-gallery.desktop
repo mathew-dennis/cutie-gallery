@@ -1,8 +1,12 @@
+#!/usr/bin/env xdg-open
 [Desktop Entry]
+Version=1.2
 Type=Application
 Name=Gallery
-Comment=Browse pictures
-Exec=cutie-gallery
-Icon=image-x-generic
-Categories=Graphics;Photography;
+Exec=/usr/bin/cutie-gallery
+TryExec=/usr/bin/cutie-gallery
+Icon=cutie-gallery
 Terminal=false
+StartupNotify=false
+Comment=Browse pictures
+Categories=Graphics;Photography;

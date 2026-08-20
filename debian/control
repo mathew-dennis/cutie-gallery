@@ -1,0 +1,24 @@
+Source: cutie-gallery
+Section: utils
+Maintainer: Mathew <you@example.com>
+Priority: optional
+Build-Depends: pkg-kde-tools,
+               cmake,
+               libgles-dev,
+               libxkbcommon-dev,
+               qt6-base-dev,
+               pkg-config,
+               qt6-declarative-dev,
+               qt6-tools-dev-tools,
+               qt6-tools-dev,
+               qt6-tools-private-dev
+Standards-Version: 4.5.1
+
+Package: cutie-gallery
+Architecture: any
+Multi-Arch: foreign
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${misc:Depends},
+         ${shlibs:Depends},
+         qml6-module-cutie,
+Description: Gallery app for Cutie Shell.

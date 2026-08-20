@@ -1,31 +1,27 @@
 cmake_minimum_required(VERSION 3.16)
-project(cutie-gallery VERSION 0.1.0 LANGUAGES CXX)
+project(cutie-gallery VERSION 1.0 LANGUAGES CXX)
 
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick Concurrent)
+find_package(Qt6 REQUIRED COMPONENTS Core Quick Qml Concurrent)
 
-add_executable(cutie-gallery
-    main.cpp
-    src/imagescanner.cpp
-    src/imagescanner.h
-    src/thumbnailprovider.cpp
-    src/thumbnailprovider.h
-    gallery.qrc
+qt_standard_project_setup()
+
+set(cutie-gallery_SOURCES
+	src/main.cpp
+	src/imagescanner.cpp
+	src/thumbnailprovider.cpp
 )
 
-target_include_directories(cutie-gallery PRIVATE src)
+qt_add_resources(APP_RESOURCES
+	${CMAKE_SOURCE_DIR}/src/qml/qml.qrc)
 
-target_link_libraries(cutie-gallery PRIVATE
-    Qt6::Core
-    Qt6::Gui
-    Qt6::Qml
-    Qt6::Quick
-    Qt6::Concurrent
-)
+qt_add_executable(cutie-gallery ${cutie-gallery_SOURCES} ${APP_RESOURCES})
 
-install(TARGETS cutie-gallery DESTINATION bin)
-install(FILES cutie-gallery.desktop DESTINATION share/applications)
+target_include_directories(cutie-gallery PUBLIC src)
+
+target_link_libraries(cutie-gallery PUBLIC Qt::Core Qt::Quick Qt::Qml Qt::Concurrent)
+
+install(TARGETS cutie-gallery RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(FILES cutie-gallery.desktop DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
+install(FILES cutie-gallery.svg DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps")

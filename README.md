@@ -16,58 +16,72 @@ cmake --build build
 ./build/cutie-gallery
 ```
 
-Requires Qt6 (built and tested against 6.4.2): Core, Gui, Qml, Quick,
-Concurrent, plus the QtQuick Controls/Templates/WorkerScript QML runtime
-modules.
+Requires Qt6 (Core, Quick, Qml, Concurrent) plus the real `qml6-module-cutie`
+package for the `Cutie`/`Atmosphere` imports to resolve - I don't have that
+module in my sandbox, so unlike the first pass at this project, **I could
+not run this one end-to-end.**
 
-I compiled this and ran it headlessly (`QT_QPA_PLATFORM=offscreen`) against
-a fake `$HOME` with dummy JPEGs to confirm it builds clean and the
-scan/dedupe/sort/thumbnail-decode pipeline actually works end to end. I have
-not tested it on-device (touch, hwcomposer, real photos), so treat gesture
-feel as a starting point, not final.
+What I could and did verify: the C++ compiles and links cleanly against
+plain Qt6 (the `Cutie` QML module isn't needed at C++ compile time, only
+when the QML actually loads), and running the built binary gets exactly as
+far as it can without that module - it fails on the single expected line,
+`module "Cutie" is not installed`, with nothing else. The QtQuick-level
+mechanics (GridView, ListView, PinchArea, TapHandler, Behavior, anchors) are
+otherwise unchanged from the version I did fully build and run earlier, so
+I'm confident in those. The Cutie-layer QML (`CutieWindow`, `CutiePage`,
+`CutiePageHeader`, `CutieButton`, `CutieLabel`, `Atmosphere.*`) is written to
+match what's actually used in `cutie-notes`, not guessed at - but I haven't
+seen it run.
 
-## What's here
+## What changed from the plain-QtQuick-Controls version
 
-- `src/imagescanner.*` — background-thread scan of `~/Pictures`, `~/DCIM`,
-  `~/DCIM/Camera` (non-recursive), deduped by canonical path, exposed as a
-  flat `QAbstractListModel` sorted newest-first.
-- `src/thumbnailprovider.*` — async `image://cutiegallerythumb/...` provider,
-  decodes off the UI thread via `QThreadPool`, scales
-  `KeepAspectRatioByExpanding` so `PreserveAspectCrop` thumbnails stay sharp.
-  In-memory only, no disk cache — simplest thing that works.
-- `qml/GalleryGridPage.qml` — grid with two fixed zoom levels (3 / 5
-  columns), toggled by pinch.
-- `qml/ImageViewerPage.qml` — horizontal `ListView` (virtualizing, so it
-  won't choke on hundreds of photos the way `SwipeView`+`Repeater` would),
-  pinch-to-zoom per photo via `PinchArea`, double-tap to reset, swiping
-  disabled while zoomed in.
-- `qml/main.qml` — plain `StackView` for navigation.
+Restructured to mirror `cutie-notes`' actual layout and conventions:
 
-## One real finding worth knowing
+- **Directory layout**: `src/main.cpp`, `src/imagescanner.*`,
+  `src/thumbnailprovider.*`, `src/qml/*.qml` with a flat `qml.qrc` - same
+  shape as `cutie-notes`, not the `qml/` + top-level `src/` split I used the
+  first time.
+- **`ImageScanner` registered as a real QML module singleton**
+  (`qmlRegisterSingletonType<ImageScanner>("CutieGallery", 1, 0,
+  "ImageScanner", ...)`, imported as `import CutieGallery`), the same way
+  `NotesManager` is registered under `"CutieNotes"`, instead of a context
+  property.
+- **Real Cutie components**: `CutieWindow` (with its own `pageStack` and
+  `initialPage`), `CutiePage`, `CutiePageHeader`, `CutieLabel`, `CutieButton`,
+  and `Atmosphere.textColor` / `Atmosphere.secondaryAlphaColor` for
+  theming - all taken directly from how `cutie-notes` actually uses them,
+  not invented.
+- **Grid page inlined into `main.qml`**, the same way `cutie-notes`' note
+  grid is inlined rather than split into its own file - only the pushed
+  detail page (`ImageViewerPage.qml`, paralleling `NoteView.qml`) is
+  separate.
+- **Photo cards match the note-card treatment**: a separate rounded
+  background rectangle (`Atmosphere.secondaryAlphaColor` at 0.15 opacity,
+  radius 12) behind each thumbnail, same as the note cards, with the image
+  inset slightly further so its square corners sit inside the rounded frame.
+- **Refresh FAB** in the same visual language as the new-note FAB
+  (transparent fill, thin `Atmosphere.textColor` ring, centered glyph),
+  wired to `ImageScanner.refresh()`.
+- **Tabs, `Q_SIGNALS`/`Q_EMIT`, `Q_INVOKABLE` without `slots:` blocks** in
+  the C++ - matching `notesmanager.h/cpp` exactly rather than the
+  spaces/`signals`/`emit` style from the first pass.
+- **`debian/`, `.desktop`, `.gitignore`, icon** all brought in line with
+  `cutie-notes`' actual packaging (same build-deps, same `xdg-open` desktop
+  entry shape, same icon style adapted to a gallery glyph).
 
-I originally had `GridView.section` for "Today / Yesterday / August 15,
-2026" style headers. Turns out `GridView` doesn't support `section` at all
-in Qt6 — that's `ListView`-only, and I only found this by actually running
-it (`Cannot assign to non-existent property "section"`). I dropped the
-header row rather than ship something silently broken. The sort order
-itself is unaffected — photos are still newest-first. If you want the
-headers back, the clean way is a mixed model (header rows and photo rows
-interleaved, `Loader`-based delegate to switch layout) rather than GridView.
+## One assumption I couldn't verify
 
-## Known simplifications / things to tune on-device
+`NoteView.qml` doesn't add its own back button, which suggests
+`CutiePageHeader` may auto-provide one once pushed onto `pageStack` - but I
+have no way to confirm that without the actual component source. Given "a
+back arrow at the top" was an explicit requirement, I kept an explicit
+`CutieButton` with a `go-previous-symbolic` icon in `ImageViewerPage.qml`'s
+header rather than assume it's redundant. If `CutiePageHeader` does provide
+one automatically, you'll see two - just delete the explicit one.
 
-- **Styling is placeholder.** Toolbar, back button, section colors are
-  generic Qt Quick Controls — swap in your Cutie theme components
-  (`ListItem.qml` conventions, etc.) for visual consistency.
-- **`pageStack` assumed to be a plain `StackView`.** If `qml-module-cutie`
-  has a shared pageStack with a different `push()` signature, swap it in —
-  it's isolated to `main.qml`.
-- **Pinch bounds in the viewer are loose**, not tightly clamped to the
-  actual scaled-image edges (`pinch.minimumX`/`maximumX` etc. use a fixed
-  multiple of image size rather than a per-scale-level exact bound). Works,
-  but allows some over-pan past the edge — worth tightening once you can
-  feel it on a touchscreen.
-- **No thumbnail disk cache**, so thumbnails redecode if scrolled far enough
-  away and back. Fine for a first pass; add a cache keyed on
-  `path + mtime` under `QStandardPaths::CacheLocation` if it's ever the
-  bottleneck.
+## Everything else from the previous README still applies
+
+Loose pinch-zoom bounds in the viewer, no thumbnail disk cache, and the
+`GridView.section` finding (it doesn't exist in Qt6 - `ListView`-only) are
+all unchanged. See the git history / previous version for that detail if
+you don't already have it.
