@@ -3,6 +3,7 @@
 #include <QAbstractListModel>
 #include <QFutureWatcher>
 #include <QVector>
+#include <QVariantList>
 #include <QMetaType>
 
 struct ImageEntry
@@ -15,20 +16,12 @@ struct ImageEntry
 
 Q_DECLARE_METATYPE(ImageEntry)
 
-// Backs the photo grid and the swipe viewer. Scans ~/Pictures, ~/DCIM and
-// ~/DCIM/Camera (non-recursively, deduped by canonical path) on a
-// QtConcurrent worker thread so it never blocks the UI - same idea as
-// DriveManager scanning /media in cutie-explorer.
-//
-// Exposed as a real QAbstractListModel rather than a QVariantList (unlike
-// NotesManager.notes) because a photo library can run into the hundreds -
-// GridView/ListView can then virtualize it properly instead of the app
-// rebuilding one big list on every change.
 class ImageScanner : public QAbstractListModel
 {
 	Q_OBJECT
 	Q_PROPERTY(bool scanning READ scanning NOTIFY scanningChanged)
 	Q_PROPERTY(int count READ count NOTIFY countChanged)
+	Q_PROPERTY(QVariantList sections READ sections NOTIFY sectionsChanged)
 
 public:
 	enum Roles {
@@ -48,14 +41,14 @@ public:
 
 	bool scanning() const { return m_scanning; }
 	int count() const { return m_entries.count(); }
+	QVariantList sections() const { return m_sections; }
 
-	// Re-scans the three folders. Called automatically on startup; exposed
-	// to QML too for the refresh FAB, mirroring DriveManager.refresh().
 	Q_INVOKABLE void refresh();
 
 Q_SIGNALS:
 	void scanningChanged();
 	void countChanged();
+	void sectionsChanged();
 
 private:
 	void onScanFinished();
@@ -64,6 +57,7 @@ private:
 	static QString sectionForTimestamp(qint64 timestamp);
 
 	QVector<ImageEntry> m_entries;
+	QVariantList m_sections;
 	QFutureWatcher<QVector<ImageEntry>> m_watcher;
 	bool m_scanning = false;
 };
