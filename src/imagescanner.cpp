@@ -1,6 +1,7 @@
 #include "imagescanner.h"
 
 #include <QDir>
+#include <QDirIterator>
 #include <QFileInfo>
 #include <QDateTime>
 #include <QSet>
@@ -84,11 +85,46 @@ void ImageScanner::onScanFinished()
 {
 	beginResetModel();
 	m_entries = m_watcher.result();
+
+	m_sections.clear();
+	QVariantMap currentSection;
+	QVariantList currentItems;
+	QString currentSectionTitle;
+
+	for (int i = 0; i < m_entries.count(); ++i) {
+		const ImageEntry &entry = m_entries.at(i);
+		if (entry.dateSection != currentSectionTitle) {
+			if (!currentSectionTitle.isEmpty()) {
+				currentSection[QStringLiteral("title")] = currentSectionTitle;
+				currentSection[QStringLiteral("countText")] = QString::number(currentItems.count()) + QStringLiteral(" Photos");
+				currentSection[QStringLiteral("items")] = currentItems;
+				m_sections.append(currentSection);
+			}
+			currentSectionTitle = entry.dateSection;
+			currentItems.clear();
+		}
+
+		QVariantMap itemMap;
+		itemMap[QStringLiteral("path")] = entry.path;
+		itemMap[QStringLiteral("fileName")] = entry.fileName;
+		itemMap[QStringLiteral("timestamp")] = entry.timestamp;
+		itemMap[QStringLiteral("globalIndex")] = i;
+		currentItems.append(itemMap);
+	}
+
+	if (!currentSectionTitle.isEmpty()) {
+		currentSection[QStringLiteral("title")] = currentSectionTitle;
+		currentSection[QStringLiteral("countText")] = QString::number(currentItems.count()) + QStringLiteral(" Photos");
+		currentSection[QStringLiteral("items")] = currentItems;
+		m_sections.append(currentSection);
+	}
+
 	endResetModel();
 
 	m_scanning = false;
 	Q_EMIT scanningChanged();
 	Q_EMIT countChanged();
+	Q_EMIT sectionsChanged();
 }
 
 QVector<ImageEntry> ImageScanner::scanFolders()
@@ -108,8 +144,11 @@ QVector<ImageEntry> ImageScanner::scanFolders()
 		if (!dir.exists())
 			continue;
 
-		const QFileInfoList fileInfos = dir.entryInfoList(kImageFilters, QDir::Files, QDir::Name);
-		for (const QFileInfo &info : fileInfos) {
+		// Recursive search through subdirectories
+		QDirIterator it(folderPath, kImageFilters, QDir::Files, QDirIterator::Subdirectories);
+		while (it.hasNext()) {
+			it.next();
+			const QFileInfo info = it.fileInfo();
 			const QString canonicalPath = info.canonicalFilePath();
 			if (canonicalPath.isEmpty() || seenPaths.contains(canonicalPath))
 				continue;
@@ -138,13 +177,5 @@ QVector<ImageEntry> ImageScanner::scanFolders()
 QString ImageScanner::sectionForTimestamp(qint64 timestamp)
 {
 	const QDateTime dt = QDateTime::fromMSecsSinceEpoch(timestamp);
-	const QDate date = dt.date();
-	const QDate today = QDate::currentDate();
-
-	if (date == today)
-		return QStringLiteral("Today");
-	if (date == today.addDays(-1))
-		return QStringLiteral("Yesterday");
-
-	return date.toString(QStringLiteral("MMMM d, yyyy"));
+	return dt.date().toString(QStringLiteral("MMMM yyyy"));
 }
