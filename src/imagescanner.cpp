@@ -133,7 +133,9 @@ QVector<ImageEntry> ImageScanner::scanFolders()
 	const QStringList folders = {
 		home + QStringLiteral("/Pictures"),
 		home + QStringLiteral("/DCIM"),
-		home + QStringLiteral("/DCIM/Camera")
+		home + QStringLiteral("/DCIM/Camera"),
+		home + QStringLiteral("/.local/share/waydroid/data/media/0/Pictures"),
+		home + QStringLiteral("/.local/share/waydroid/data/media/0/DCIM")
 	};
 
 	QVector<ImageEntry> entries;
@@ -144,7 +146,6 @@ QVector<ImageEntry> ImageScanner::scanFolders()
 		if (!dir.exists())
 			continue;
 
-		// Recursive search through subdirectories
 		QDirIterator it(folderPath, kImageFilters, QDir::Files, QDirIterator::Subdirectories);
 		while (it.hasNext()) {
 			it.next();
