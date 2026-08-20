@@ -124,6 +124,6 @@ CutiePage {
             color: "#66000000"
         }
 
-        onClicked: page.backRequested()
+        onClicked:imageView.backRequested()
     }
 }
