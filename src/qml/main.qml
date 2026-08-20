@@ -85,24 +85,9 @@ CutieWindow {
 					width: photoGrid.cellWidth
 					height: photoGrid.cellHeight
 
-					// Background is a separate item from the thumbnail, same
-					// idea as cutie-notes' note cards - a subtle rounded
-					// tint behind the content. The image sits inset a
-					// little further than the tint so its square corners
-					// stay safely inside the rounded frame instead of
-					// poking past it.
-					Rectangle {
-						id: cardBg
-						anchors.fill: parent
-						anchors.margins: 4
-						radius: 12
-						color: Atmosphere.secondaryAlphaColor
-						opacity: 0.15
-					}
-
 					Image {
 						anchors.fill: cardBg
-						anchors.margins: 3
+						anchors.margins: 2
 						asynchronous: true
 						fillMode: Image.PreserveAspectCrop
 						source: "image://cutiegallerythumb/" + encodeURIComponent(model.path)
